@@ -1,7 +1,11 @@
 const { Pool } = require("pg");
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
   ssl: process.env.DB_SSL === "false" ? false : { rejectUnauthorized: false },
 });
 
@@ -307,6 +311,8 @@ const addProductPack = async (product_id, pack_size, price, mrp_price) => {
 };
 
 const getProductPacksByProductId = async (product_id) => {
+  if (!productPacksTable) return [];
+  
   const table = getProductPacksTable();
   const res = await pool.query(
     `SELECT * FROM ${table} WHERE product_id = $1 ORDER BY price ASC`,
@@ -316,6 +322,8 @@ const getProductPacksByProductId = async (product_id) => {
 };
 
 const setProductPacks = async (product_id, sizesArr) => {
+  if (!productPacksTable) return;
+  
   const table = getProductPacksTable();
   await pool.query(`DELETE FROM ${table} WHERE product_id = $1`, [product_id]);
   for (const s of sizesArr) {
