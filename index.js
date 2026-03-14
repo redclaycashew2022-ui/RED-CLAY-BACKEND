@@ -3,7 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 require("dotenv").config();
 
-const pool = require("./database");
+const { initDB } = require("./db");
 const apiRoutes = require("./routes");
 
 const app = express();
@@ -17,7 +17,7 @@ app.use("/uploadimage", express.static(uploadImageDir));
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:5173"], // Add your frontend URL
+    origin: ["http://localhost:3000", "http://localhost:5173","https://red-clay-backend.onrender.com"], 
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "x-phone-number"],
   })
@@ -31,6 +31,18 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+
+const startServer = async () => {
+  try {
+    await initDB();
+    console.log("✅ Database tables initialized");
+  } catch (err) {
+    console.error("❌ Error initializing database:", err);
+  }
+  
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+  });
+};
+
+startServer();
