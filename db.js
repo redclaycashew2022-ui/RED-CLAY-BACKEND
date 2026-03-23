@@ -476,6 +476,188 @@ const updatePremiumCashewOrder = async (items) => {
 };
 
 
+const getAllExportPremiumCashews = async () => {
+  const query = `
+    SELECT * FROM export_premiumcashew 
+    WHERE is_active = true 
+    ORDER BY display_order ASC, created_at DESC
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+};
+
+const getExportPremiumCashewById = async (id) => {
+  const query = 'SELECT * FROM export_premiumcashew WHERE id = $1';
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+};
+
+const addExportPremiumCashew = async (product) => {
+  try {
+    const { name, size, price } = product;
+    
+    // Convert price to number and validate
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      throw new Error("Invalid price value");
+    }
+
+    console.log("Adding premium cashew:", { name, size, price: priceNum });
+
+    const query = `
+      INSERT INTO export_premiumcashew (name, size, price)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [name, size, priceNum]);
+    
+    console.log("Premium cashew added successfully:", result.rows[0]);
+    return result.rows[0];
+  } catch (err) {
+    console.error("Error in addExportPremiumCashew:", err);
+    throw err;
+  }
+};
+
+const updateExportPremiumCashew = async (id, product) => {
+  const { name, size, price, is_active } = product;
+  let query = `
+    UPDATE export_premiumcashew 
+    SET updated_at = CURRENT_TIMESTAMP
+  `;
+  const values = [];
+  let paramCount = 1;
+
+  if (name !== undefined) {
+    query += `, name = $${paramCount}`;
+    values.push(name);
+    paramCount++;
+  }
+  if (size !== undefined) {
+    query += `, size = $${paramCount}`;
+    values.push(size);
+    paramCount++;
+  }
+  if (price !== undefined) {
+    query += `, price = $${paramCount}`;
+    values.push(price);
+    paramCount++;
+  }
+  
+  if (is_active !== undefined) {
+    query += `, is_active = $${paramCount}`;
+    values.push(is_active);
+    paramCount++;
+  }
+
+  query += ` WHERE id = $${paramCount} RETURNING *`;
+  values.push(id);
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
+};
+  
+const deleteExportPremiumCashew = async (id) => {
+  const query = 'DELETE FROM export_premiumcashew WHERE id = $1 RETURNING id';
+  const result = await pool.query(query, [id]);
+  return result.rows[0];
+};
+
+const addAddress = async (data) => {
+  const {
+    user_id, first_name, last_name, address,
+    apartment, city, state, pincode, phone
+  } = data;
+
+  const res = await pool.query(
+    `INSERT INTO address 
+    (user_id, first_name, last_name, address, apartment, city, state, pincode, phone)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    RETURNING *`,
+    [user_id, first_name, last_name, address, apartment, city, state, pincode, phone]
+  );
+
+  return res.rows[0];
+};
+
+const getUserAddresses = async (user_id) => {
+  const res = await pool.query(
+    `SELECT * FROM address WHERE user_id = $1 ORDER BY created_at DESC`,
+    [user_id]
+  );
+  return res.rows;
+};
+
+// DELETE ADDRESS
+const deleteAddress = async (id) => {
+  await pool.query(`DELETE FROM address WHERE id = $1`, [id]);
+};
+
+
+// CREATE ORDER
+const createOrder = async (data) => {
+  const { user_id, address_id, total_amount, payment_method, items } = data;
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const orderRes = await client.query(
+      `INSERT INTO orders (user_id, address_id, total_amount, payment_method)
+       VALUES ($1,$2,$3,$4)
+       RETURNING *`,
+      [user_id, address_id, total_amount, payment_method]
+    );
+
+    const order = orderRes.rows[0];
+
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO order_items 
+        (order_id, product_id, product_name, size, price, quantity)
+        VALUES ($1,$2,$3,$4,$5,$6)`,
+        [
+          order.id,
+          item.product_id,
+          item.name,
+          item.size,
+          item.price,
+          item.quantity,
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return order;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+
+// GET ALL ORDERS
+const getAllOrders = async () => {
+  const res = await pool.query(`
+    SELECT o.*, a.first_name, a.address, a.city, a.state, a.pincode
+    FROM orders o
+    LEFT JOIN address a ON o.address_id = a.id
+    ORDER BY o.created_at DESC
+  `);
+
+  return res.rows;
+};
+
+// DELETE ORDER
+const deleteOrder = async (id) => {
+  await pool.query(`DELETE FROM orders WHERE id = $1`, [id]);
+};
+
 module.exports = {
   pool,
   initDB,
@@ -495,6 +677,16 @@ module.exports = {
   addPremiumCashew,
   updatePremiumCashew,
   deletePremiumCashew,
-
   updatePremiumCashewOrder,
+  getAllExportPremiumCashews,
+  getExportPremiumCashewById,
+  addExportPremiumCashew,
+  updateExportPremiumCashew,
+  deleteExportPremiumCashew,
+  addAddress,
+  getUserAddresses,
+  deleteAddress,
+  createOrder,
+  getAllOrders,
+  deleteOrder
 };
