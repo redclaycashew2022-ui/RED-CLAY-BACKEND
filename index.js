@@ -17,7 +17,8 @@ app.use("/uploadimage", express.static(uploadImageDir));
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:5173",
+    origin: ["http://localhost:3000", 
+             "http://localhost:5173",
              "https://red-clay-backend.onrender.com",
              "https://dapper-granita-57cda0.netlify.app",
              "https://redclaycashews.netlify.app",
