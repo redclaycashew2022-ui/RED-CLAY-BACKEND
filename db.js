@@ -565,17 +565,32 @@ const deleteExportPremiumCashew = async (id) => {
 };
 
 const addAddress = async (data) => {
-  const {
-    user_id, first_name, last_name, address,
-    apartment, city, state, pincode, phone
-  } = data;
+  // 1. Find user by phone
+  const userRes = await pool.query(
+    `SELECT id FROM users WHERE phone_number = $1`,
+    [data.phone]
+  );
 
+  const user_id = userRes.rows[0]?.id || null;
+
+  // 2. Insert address with user_id
   const res = await pool.query(
     `INSERT INTO address 
-    (user_id, first_name, last_name, address, apartment, city, state, pincode, phone)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    (user_id, first_name, last_name, phone, address, apartment, city, state, pincode, country)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *`,
-    [user_id, first_name, last_name, address, apartment, city, state, pincode, phone]
+    [
+      user_id,
+      data.first_name,
+      data.last_name,
+      data.phone,
+      data.address,
+      data.apartment,
+      data.city,
+      data.state,
+      data.pincode,
+      data.country,
+    ]
   );
 
   return res.rows[0];
