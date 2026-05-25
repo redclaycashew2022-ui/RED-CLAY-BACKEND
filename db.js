@@ -361,15 +361,15 @@ createPremiumCashewsTable();
 
 const getAllPremiumCashews = async () => {
   const query = `
-    SELECT * FROM premium_cashews 
-    WHERE is_active = true 
-    ORDER BY display_order ASC, created_at DESC
+    SELECT * FROM premium_cashews
+    ORDER BY created_at DESC
   `;
+
   const result = await pool.query(query);
   return result.rows;
 };
 
-// Get single premium cashew by ID
+
 const getPremiumCashewById = async (id) => {
   const query = 'SELECT * FROM premium_cashews WHERE id = $1';
   const result = await pool.query(query, [id]);
@@ -565,7 +565,7 @@ const deleteExportPremiumCashew = async (id) => {
 };
 
 const addAddress = async (data) => {
-  // 1. Find user by phone
+  const table = getUsersTable();
   const userRes = await pool.query(
     `SELECT id FROM users WHERE phone_number = $1`,
     [data.phone]
