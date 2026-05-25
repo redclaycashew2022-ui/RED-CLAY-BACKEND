@@ -126,15 +126,22 @@ router.use("/uploadimage", express.static(uploadDir));
 
 const isAdmin = async (req, res, next) => {
   try {
-    const phone =
+   let phone =
       req.headers["x-phone-number"] ||
       req.body.phone_number ||
       req.body.phoneNumber ||
       req.body.phone;
+        console.log("isAdmin check - phone:", phone); 
     if (!phone)
       return res.status(401).json({ message: "Admin phone required" });
 
+      // Normalize: if no +91 prefix, add it
+    if (!phone.startsWith("+")) {
+      phone = "+91" + phone;
+    }
+
     const user = await getUserByPhone(phone);
+     console.log("isAdmin check - user:", user); 
     if (!user || user.user_type !== "admin") {
       return res.status(403).json({ message: "Admin privileges required" });
     }
@@ -511,6 +518,7 @@ router.get("/premium-cashews/:id", async (req, res) => {
 // POST create new premium cashew (admin only)
   router.post("/premium-cashews", isAdmin, async (req, res) => {
       console.log("Premium cashew route hit");
+      console.log("Request body:", req.body);
     try {
       const { name, size, price } = req.body;
       
