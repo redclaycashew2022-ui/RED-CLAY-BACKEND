@@ -23,7 +23,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://red-clay-backend.onrender.com",
+      "https://red-clay-backend.onrender.com",    
       "https://dapper-granita-57cda0.netlify.app",
       "https://redclaycashews.netlify.app",
       "https://redclaycashews.com",
@@ -33,7 +33,7 @@ app.use(
   })
 );
 
-// Body parsing
+
 app.use(bodyParser.json());
 
 // Routes
@@ -43,7 +43,7 @@ app.get("/", (req, res) => {
   res.send("Backend running successfully 🚀");
 });
 
-// Start ONCE
+
 const startServer = async () => {
   try {
     await initDB();
