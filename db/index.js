@@ -53,6 +53,47 @@ const ensurePaymentColumns = async () => {
   `);
 };
 
+const ensureHomepageCollectionColumn = async () => {
+  const table = getProductsTable();
+  if (!table) return;
+  await pool.query(`
+    ALTER TABLE ${table}
+      ADD COLUMN IF NOT EXISTS homepage_collection VARCHAR(100)
+  `);
+};
+
+const ensureOrderItemsTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.order_items (
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER REFERENCES public.orders(id) ON DELETE CASCADE,
+      product_id INTEGER,
+      product_name VARCHAR(255),
+      size VARCHAR(50),
+      price NUMERIC(10,2),
+      quantity INTEGER,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`
+    ALTER TABLE order_items
+      ADD COLUMN IF NOT EXISTS product_image TEXT
+  `);
+};
+
+const ensureContactMessagesTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.contact_messages (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      whatsapp_number VARCHAR(20) NOT NULL,
+      email VARCHAR(150) NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
 const initDB = async () => {
   usersTable = await detectUsersTable();
   if (!usersTable) console.error("❌ Could not find a usable users table.");
@@ -65,9 +106,22 @@ const initDB = async () => {
     console.warn("⚠️  Could not find a usable product_packs table — pack features disabled.");
 
   try {
-    await ensurePaymentColumns();
+    await ensureHomepageCollectionColumn();
   } catch (err) {
-    console.error("❌ Error ensuring payment columns on orders table:", err.message);
+    console.error("❌ Error ensuring products.homepage_collection column:", err.message);
+  }
+
+  try {
+    await ensurePaymentColumns();
+    await ensureOrderItemsTable();
+  } catch (err) {
+    console.error("❌ Error ensuring orders/order_items schema:", err.message);
+  }
+
+  try {
+    await ensureContactMessagesTable();
+  } catch (err) {
+    console.error("❌ Error ensuring contact_messages table:", err.message);
   }
 };
 

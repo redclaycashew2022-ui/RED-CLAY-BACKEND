@@ -4,16 +4,26 @@ const router = express.Router();
 const isAdmin = require("../middleware/isAdmin");
 const { upload } = require("../config.js/multer");
 
-router.post("/upload-image", isAdmin, upload.single("image"), (req, res) => {
+router.post("/upload-image", isAdmin, (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (err) {
+      console.error("❌ Upload middleware error:", err);
+      return res.status(400).json({ message: err.message || "Upload failed" });
+    }
+    next();
+  });
+}, (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    const relativeUrl = `/uploadimage/${req.file.filename}`;
+
     res.json({
       success: true,
-      url: req.file.path,
-      fullUrl: req.file.path,
+      url: relativeUrl,
+      fullUrl: relativeUrl,
       filename: req.file.filename,
     });
   } catch (err) {

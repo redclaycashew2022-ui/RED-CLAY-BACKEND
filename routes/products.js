@@ -10,6 +10,7 @@ const{
   addProduct,
   getAllProducts,
   getProductsBySearch,
+  getProductsByHomepageCollection,
   updateProduct,
   deleteProduct,
   getProductPacksByProductId,
@@ -175,6 +176,33 @@ router.post("/products/by-subcategory", async (req, res) => {
   } catch (err) {
     console.error("Get products by subcategory error:", err);
     res.status(500).json({ message: "Failed to fetch products by subcategory" });
+  }
+});
+
+
+router.post("/products/by-homepage-collection", async (req, res) => {
+  try {
+    const { value, data } = req.body;
+    if (value !== "homepage_collection" || !data) {
+      return res.status(400).json({
+        message:
+          "Invalid payload. Use { value: 'homepage_collection', data: '...' }",
+      });
+    }
+
+    const filtered = await getProductsByHomepageCollection(data);
+    const withSizes = await Promise.all(
+      filtered.map(async (p) => {
+        const sizes = await getProductPacksByProductId(p.id);
+        return { ...p, sizes };
+      })
+    );
+    res.json(withSizes);
+  } catch (err) {
+    console.error("Get products by homepage collection error:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch products by homepage collection" });
   }
 });
 

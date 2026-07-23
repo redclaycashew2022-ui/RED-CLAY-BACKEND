@@ -9,6 +9,8 @@ router.use(require("./exportPremiumCashewRoutes"));
 router.use(require("./addressRoutes"));
 router.use(require("./orderRoutes"));
 router.use(require("./paymentRoutes"));
+router.use(require("./contactRoutes"));
+router.use(require("./statsRoutes"));
 
 module.exports = router;
 

@@ -11,6 +11,7 @@ const addProduct = async (data) => {
     category,
     maincategory,
     subcategory,
+    homepage_collection,
     image_url,
     image_url1,
     image_url2,
@@ -31,9 +32,9 @@ const addProduct = async (data) => {
   const res = await pool.query(
     `INSERT INTO ${table}
        (name, description, price, mrp_price, sale_price, stock, category,
-        maincategory, subcategory, image_url, image_url1, image_url2, image_url3,
+        maincategory, subcategory, homepage_collection, image_url, image_url1, image_url2, image_url3,
         image_url4, image_url5, is_active, g, pack_of)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      RETURNING *`,
     [
       name,
@@ -45,6 +46,7 @@ const addProduct = async (data) => {
       category || null,
       maincategory || null,
       subcategory || null,
+      homepage_collection || null,
       legacyImage,
       image_url1 || null,
       image_url2 || null,
@@ -71,6 +73,7 @@ const updateProduct = async (id, data) => {
     category,
     maincategory,
     subcategory,
+    homepage_collection,
     image_url,
     image_url1,
     image_url2,
@@ -91,11 +94,11 @@ const updateProduct = async (id, data) => {
   const res = await pool.query(
     `UPDATE ${table}
      SET name=$1, description=$2, price=$3, mrp_price=$4, sale_price=$5,
-         stock=$6, category=$7, maincategory=$8, subcategory=$9,
-         image_url=$10, image_url1=$11, image_url2=$12, image_url3=$13,
-         image_url4=$14, image_url5=$15, is_active=$16, g=$17, pack_of=$18,
+         stock=$6, category=$7, maincategory=$8, subcategory=$9, homepage_collection=$10,
+         image_url=$11, image_url1=$12, image_url2=$13, image_url3=$14,
+         image_url4=$15, image_url5=$16, is_active=$17, g=$18, pack_of=$19,
          updated_at = NOW()
-     WHERE id = $19
+     WHERE id = $20
      RETURNING *`,
     [
       name,
@@ -107,6 +110,7 @@ const updateProduct = async (id, data) => {
       category || null,
       maincategory || null,
       subcategory || null,
+      homepage_collection || null,
       legacyImage,
       image_url1 || null,
       image_url2 || null,
@@ -134,6 +138,16 @@ const getAllProducts = async () => {
     `SELECT * FROM ${table} WHERE is_active = true ORDER BY created_at DESC`
   );
   return res.rows;
+};
+
+
+const getProductsByHomepageCollection = async (homepageCollection) => {
+  const products = await getAllProducts();
+  return products.filter(
+    (p) =>
+      typeof p.homepage_collection === "string" &&
+      p.homepage_collection.toLowerCase() === homepageCollection.toLowerCase()
+  );
 };
 
 
@@ -208,6 +222,7 @@ module.exports = {
   deleteProduct,
   getAllProducts,
   getProductsBySearch,
+  getProductsByHomepageCollection,
   addProductPack,
   getProductPacksByProductId,
   setProductPacks,

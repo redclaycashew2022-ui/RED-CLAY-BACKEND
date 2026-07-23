@@ -41,9 +41,16 @@ const clearOTP = async (phone_number) => {
   );
 };
 
+const getUserCount = async () => {
+  const table = getUsersTable();
+  const res = await pool.query(`SELECT COUNT(*) AS count FROM ${table}`);
+  return parseInt(res.rows[0].count, 10);
+};
+
 
 module.exports = {
   upsertUserOTP,
   getUserByPhone,
   clearOTP,
+  getUserCount,
 };
