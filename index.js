@@ -11,13 +11,11 @@ const apiRoutes = require("./routes");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Static files
 const uploadImageDir = path.join(__dirname, "uploadimage");
 if (!fs.existsSync(uploadImageDir))
   fs.mkdirSync(uploadImageDir, { recursive: true });
 app.use("/uploadimage", express.static(uploadImageDir));
 
-// CORS
 app.use(
   cors({
     origin: [
@@ -33,16 +31,11 @@ app.use(
   })
 );
 
-
 app.use(bodyParser.json());
-
-// Routes
 app.use("/api", apiRoutes);
-
 app.get("/", (req, res) => {
   res.send("Backend running successfully 🚀");
 });
-
 
 const startServer = async () => {
   try {
