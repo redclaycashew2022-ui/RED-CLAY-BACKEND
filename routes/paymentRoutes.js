@@ -3,7 +3,9 @@ const router = express.Router();
 const crypto = require("crypto");
 
 const razorpay = require("../config.js/razorpay");
-const { createOrder } = require("../db/order.db");
+const { createOrder, getOrderById } = require("../db/order.db");
+const { sendAdminWhatsApp, sendCustomerWhatsApp } = require("../services/twilioService");
+const { buildNewOrderAdminMessage, buildNewOrderCustomerMessage } = require("../utils/notificationTemplates");
 
 // Create a Razorpay order for the given cart total
 router.post("/payments/create-order", async (req, res) => {
@@ -64,7 +66,44 @@ router.post("/payments/verify", async (req, res) => {
       razorpay_signature,
     });
 
-    res.json({ success: true, data: order });
+    // Notify admin + customer over WhatsApp now that payment is verified and
+    // the order is saved. Notification failure must not fail the payment
+    // response — the customer's order already succeeded — but we report it
+    // back so the failure isn't silent.
+    let adminNotified = false;
+    let notifyError = null;
+    let customerNotified = false;
+    let customerNotifyError = null;
+
+    const fullOrder = await getOrderById(order.id);
+    if (fullOrder) {
+      try {
+        await sendAdminWhatsApp(buildNewOrderAdminMessage(fullOrder));
+        adminNotified = true;
+      } catch (err) {
+        notifyError = err.message || "Unknown Twilio error";
+        console.error(`Admin WhatsApp notification failed for order #${order.id}: ${notifyError}`);
+      }
+
+      try {
+        await sendCustomerWhatsApp(fullOrder.phone, buildNewOrderCustomerMessage(fullOrder));
+        customerNotified = true;
+      } catch (err) {
+        customerNotifyError = err.message || "Unknown Twilio error";
+        console.error(`Customer WhatsApp notification failed for order #${order.id}: ${customerNotifyError}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: order,
+      whatsapp: {
+        adminNotified,
+        error: notifyError,
+        customerNotified,
+        customerError: customerNotifyError,
+      },
+    });
   } catch (err) {
     console.error("Payment verify error:", err);
     res.status(500).json({ message: "Payment verification failed" });

@@ -3,22 +3,25 @@
 const {
   pool,
   getUsersTable,
+  normalizePhone,
 } = require("../db");
 
 
 
 const addAddress = async (data) => {
   const table = getUsersTable();
+  const phone = normalizePhone(data.phone);
+
   const userRes = await pool.query(
     `SELECT id FROM users WHERE phone_number = $1`,
-    [data.phone]
+    [phone]
   );
 
   const user_id = userRes.rows[0]?.id || null;
 
   // 2. Insert address with user_id
   const res = await pool.query(
-    `INSERT INTO address 
+    `INSERT INTO address
     (user_id, first_name, last_name, phone, address, apartment, city, state, pincode, country)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *`,
@@ -26,7 +29,7 @@ const addAddress = async (data) => {
       user_id,
       data.first_name,
       data.last_name,
-      data.phone,
+      phone,
       data.address,
       data.apartment,
       data.city,

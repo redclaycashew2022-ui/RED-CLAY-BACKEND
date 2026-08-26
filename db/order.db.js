@@ -55,12 +55,30 @@ const createOrder = async (data) => {
 };
 
 
-// GET ALL ORDERS
+// GET ALL ORDERS (with delivery details + line items, for the admin panel)
 const getAllOrders = async () => {
   const res = await pool.query(`
-    SELECT o.*, a.first_name, a.address, a.city, a.state, a.pincode
+    SELECT
+      o.id, o.total_amount, o.payment_method, o.payment_status,
+      o.order_status, o.razorpay_payment_id, o.created_at,
+      a.first_name, a.last_name, a.phone, a.address, a.apartment, a.city, a.state, a.pincode,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'product_id', oi.product_id,
+            'name', oi.product_name,
+            'size', oi.size,
+            'price', oi.price,
+            'quantity', oi.quantity,
+            'image', oi.product_image
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS items
     FROM orders o
     LEFT JOIN address a ON o.address_id = a.id
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    GROUP BY o.id, a.id
     ORDER BY o.created_at DESC
   `);
 
@@ -101,12 +119,46 @@ const getOrdersByPhone = async (phone) => {
   return res.rows;
 };
 
+// GET SINGLE ORDER WITH FULL DETAILS (address + items) — used to build
+// WhatsApp notification messages
+const getOrderById = async (id) => {
+  const res = await pool.query(
+    `
+    SELECT
+      o.id, o.total_amount, o.payment_method, o.payment_status,
+      o.order_status, o.razorpay_payment_id, o.created_at,
+      a.first_name, a.last_name, a.phone, a.address, a.apartment, a.city, a.state, a.pincode,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'product_id', oi.product_id,
+            'name', oi.product_name,
+            'size', oi.size,
+            'price', oi.price,
+            'quantity', oi.quantity,
+            'image', oi.product_image
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS items
+    FROM orders o
+    JOIN address a ON o.address_id = a.id
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    WHERE o.id = $1
+    GROUP BY o.id, a.id
+    `,
+    [id]
+  );
+
+  return res.rows[0] || null;
+};
+
 // DELETE ORDER
 const deleteOrder = async (id) => {
   await pool.query(`DELETE FROM orders WHERE id = $1`, [id]);
 };
 
-const ORDER_STATUSES = ["pending", "confirmed", "shipped", "on_the_way", "delivered"];
+const ORDER_STATUSES = ["pending", "confirmed", "packed", "shipped", "delivered", "cancelled"];
 
 // UPDATE ORDER STATUS
 const updateOrderStatus = async (id, status) => {
@@ -139,6 +191,7 @@ module.exports = {
   createOrder,
   getAllOrders,
   getOrdersByPhone,
+  getOrderById,
   deleteOrder,
   updateOrderStatus,
   getOrderStats,

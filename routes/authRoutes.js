@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const twilio = require("twilio");
 
 const isAdmin = require("../middleware/isAdmin");
+const { generateOTPCode, sendOTP } = require("../services/twilioService");
 
 const {
   upsertUserOTP,
@@ -10,27 +10,19 @@ const {
   clearOTP
 } = require("../db/auth.db");
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-
 router.post("/request-otp", async (req, res) => {
   const phone_number = req.body.phone_number || req.body.phoneNumber;
   if (!phone_number)
     return res.status(400).json({ message: "Phone number required" });
 
-  const otp = generateOTP();
+  const otp = generateOTPCode();
   const otp_expiry = new Date(Date.now() + 5 * 60 * 1000);
 
   try {
     const user = await upsertUserOTP(phone_number, otp, otp_expiry);
 
     try {
-      await client.messages.create({
-        body: `Your OTP is ${otp}`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: phone_number,
-      });
+      await sendOTP(phone_number, otp);
     } catch (twErr) {
       console.error("Twilio send error:", twErr);
       return res

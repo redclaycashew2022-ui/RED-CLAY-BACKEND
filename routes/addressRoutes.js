@@ -28,10 +28,10 @@ router.post("/address", async (req, res) => {
 
 router.get("/address/:phone", async (req, res) => {
   try {
-    const { pool } = require("../db");
+    const { pool, normalizePhone } = require("../db");
     const data = await pool.query(
       `SELECT * FROM address WHERE phone = $1 ORDER BY created_at DESC`,
-      [req.params.phone]
+      [normalizePhone(req.params.phone)]
     );
     res.json(data.rows);
   } catch (err) {
@@ -42,14 +42,14 @@ router.get("/address/:phone", async (req, res) => {
 
 router.put("/address/:id", async (req, res) => {
   try {
-    const { pool } = require("../db");
+    const { pool, normalizePhone } = require("../db");
     const { first_name, last_name, phone, address, apartment, city, state, pincode, country } = req.body;
     const result = await pool.query(
       `UPDATE address
        SET first_name=$1, last_name=$2, phone=$3, address=$4,
            apartment=$5, city=$6, state=$7, pincode=$8, country=$9
        WHERE id=$10 RETURNING *`,
-      [first_name, last_name, phone, address, apartment, city, state, pincode, country, req.params.id]
+      [first_name, last_name, normalizePhone(phone), address, apartment, city, state, pincode, country, req.params.id]
     );
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: "Address not found" });
