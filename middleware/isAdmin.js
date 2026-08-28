@@ -22,6 +22,7 @@ const isAdmin = async (req, res, next) => {
       return res.status(403).json({ message: "Admin privileges required" });
     }
 
+    req.adminUser = user;
     next();
   } catch (err) {
     console.error("isAdmin middleware error:", err);

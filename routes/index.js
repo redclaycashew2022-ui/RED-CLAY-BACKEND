@@ -11,6 +11,7 @@ router.use(require("./orderRoutes"));
 router.use(require("./paymentRoutes"));
 router.use(require("./contactRoutes"));
 router.use(require("./statsRoutes"));
+router.use(require("./billingSsoRoutes"));
 
 module.exports = router;
 
