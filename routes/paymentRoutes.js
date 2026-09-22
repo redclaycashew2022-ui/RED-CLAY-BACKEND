@@ -1,3 +1,5 @@
+
+
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
@@ -5,7 +7,15 @@ const crypto = require("crypto");
 const razorpay = require("../config.js/razorpay");
 const { createOrder, getOrderById } = require("../db/order.db");
 const { sendAdminWhatsApp, sendCustomerWhatsApp } = require("../services/twilioService");
-const { buildNewOrderAdminMessage, buildNewOrderCustomerMessage } = require("../utils/notificationTemplates");
+const {
+  buildNewOrderAdminTemplateVars,
+  buildNewOrderCustomerTemplateVars,
+} = require("../utils/notificationTemplates");
+
+// TODO: replace with your real admin template's Content SID from Twilio
+const ADMIN_ORDER_TEMPLATE_SID = "HX03974c2a91d6f3e023a7da10945e4471";
+// Your customer template's Content SID
+const CUSTOMER_ORDER_TEMPLATE_SID = "HX0b007913ed03ec67bb95fa548877cb25";
 
 // Create a Razorpay order for the given cart total
 router.post("/payments/create-order", async (req, res) => {
@@ -78,7 +88,10 @@ router.post("/payments/verify", async (req, res) => {
     const fullOrder = await getOrderById(order.id);
     if (fullOrder) {
       try {
-        await sendAdminWhatsApp(buildNewOrderAdminMessage(fullOrder));
+        await sendAdminWhatsApp({
+          contentSid: ADMIN_ORDER_TEMPLATE_SID,
+          contentVariables: JSON.stringify(buildNewOrderAdminTemplateVars(fullOrder)),
+        });
         adminNotified = true;
       } catch (err) {
         notifyError = err.message || "Unknown Twilio error";
@@ -86,7 +99,10 @@ router.post("/payments/verify", async (req, res) => {
       }
 
       try {
-        await sendCustomerWhatsApp(fullOrder.phone, buildNewOrderCustomerMessage(fullOrder));
+        await sendCustomerWhatsApp(fullOrder.phone, {
+          contentSid: CUSTOMER_ORDER_TEMPLATE_SID,
+          contentVariables: JSON.stringify(buildNewOrderCustomerTemplateVars(fullOrder)),
+        });
         customerNotified = true;
       } catch (err) {
         customerNotifyError = err.message || "Unknown Twilio error";

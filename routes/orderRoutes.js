@@ -1,99 +1,12 @@
-// const express = require("express");
-// const router = express.Router();
-
-// const isAdmin = require("../middleware/isAdmin");
-// const { sendCustomerWhatsApp } = require("../services/twilioService");
-// const { buildCustomerStatusMessage } = require("../utils/notificationTemplates");
-
-// const {
-//   createOrder,
-//   getAllOrders,
-//   getOrdersByPhone,
-//   getOrderById,
-//   deleteOrder,
-//   updateOrderStatus
-// } = require("../db/order.db");
-
-// router.post("/orders", async (req, res) => {
-//   try {
-//     const order = await createOrder(req.body);
-//     res.json({ success: true, data: order });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Order failed" });
-//   }
-// });
-
-// router.get("/orders", isAdmin, async (req, res) => {
-//   try {
-//     const data = await getAllOrders();
-//     res.json(data);
-//   } catch (err) {
-//     res.status(500).json({ message: "Error" });
-//   }
-// });
-
-// router.get("/orders/user/:phone", async (req, res) => {
-//   try {
-//     const data = await getOrdersByPhone(req.params.phone);
-//     res.json(data);
-//   } catch (err) {
-//     console.error("Get user orders error:", err);
-//     res.status(500).json({ message: "Error fetching orders" });
-//   }
-// });
-
-// router.put("/orders/:id/status", isAdmin, async (req, res) => {
-//   try {
-//     const order = await updateOrderStatus(req.params.id, req.body.status);
-//     if (!order) return res.status(404).json({ message: "Order not found" });
-
-//     // Notify the customer over WhatsApp. Failure to notify must not fail the
-//     // status update itself — the order status is already persisted — but we
-//     // report it back so the admin panel can surface the exact reason.
-//     let notified = false;
-//     let notifyError = null;
-//     try {
-//       const fullOrder = await getOrderById(order.id);
-//       const message = buildCustomerStatusMessage(order.order_status, fullOrder);
-//       if (fullOrder && message) {
-//         await sendCustomerWhatsApp(fullOrder.phone, message);
-//         notified = true;
-//       }
-//     } catch (err) {
-//       notifyError = err.message || "Unknown Twilio error";
-//       console.error(`WhatsApp status notification failed for order #${order.id}: ${notifyError}`);
-//     }
-
-//     res.json({ success: true, data: order, whatsapp: { notified, error: notifyError } });
-//   } catch (err) {
-//     console.error("Update order status error:", err);
-//     res.status(400).json({ message: err.message || "Failed to update status" });
-//   }
-// });
-
-// router.delete("/orders/:id", isAdmin, async (req, res) => {
-//   try {
-//     await deleteOrder(req.params.id);
-//     res.json({ message: "Order deleted" });
-//   } catch (err) {
-//     res.status(500).json({ message: "Error" });
-//   }
-// });
-
-
-// module.exports = router;
-
-
 const express = require("express");
 const router = express.Router();
 
 const isAdmin = require("../middleware/isAdmin");
 const { sendCustomerWhatsApp, sendAdminWhatsApp } = require("../services/twilioService");
 const {
-  buildCustomerStatusMessage,
-  buildNewOrderAdminMessage,
-  buildNewOrderCustomerMessage,
+  buildCustomerStatusTemplate,
+  buildNewOrderAdminTemplateVars,
+  buildNewOrderCustomerTemplateVars,
 } = require("../utils/notificationTemplates");
 
 const {
@@ -105,24 +18,29 @@ const {
   updateOrderStatus
 } = require("../db/order.db");
 
+// Approved WhatsApp Content Template SIDs for the initial order-confirmation message
+const ADMIN_ORDER_TEMPLATE_SID = "HX03974c2a91d6f3e023a7da10945e4471"; // order_confirmation_admin_v3
+const CUSTOMER_ORDER_TEMPLATE_SID = "HX0b007913ed03ec67bb95fa548877cb25"; // order_confirmation_customer_v2
+
 router.post("/orders", async (req, res) => {
   try {
     const order = await createOrder(req.body);
 
-    // Notify admin + customer over WhatsApp. This must never fail the order
-    // creation itself — the order is already persisted — so we report the
-    // notification outcome separately instead of throwing.
     let adminNotified = false;
     let customerNotified = false;
     let notifyError = null;
     try {
       const fullOrder = await getOrderById(order.id);
-      const adminMessage = buildNewOrderAdminMessage(fullOrder);
-      const customerMessage = buildNewOrderCustomerMessage(fullOrder);
 
       const [adminResult, customerResult] = await Promise.allSettled([
-        sendAdminWhatsApp(adminMessage),
-        sendCustomerWhatsApp(fullOrder.phone, customerMessage),
+        sendAdminWhatsApp({
+          contentSid: ADMIN_ORDER_TEMPLATE_SID,
+          contentVariables: JSON.stringify(buildNewOrderAdminTemplateVars(fullOrder)),
+        }),
+        sendCustomerWhatsApp(fullOrder.phone, {
+          contentSid: CUSTOMER_ORDER_TEMPLATE_SID,
+          contentVariables: JSON.stringify(buildNewOrderCustomerTemplateVars(fullOrder)),
+        }),
       ]);
 
       adminNotified = adminResult.status === "fulfilled";
@@ -170,16 +88,13 @@ router.put("/orders/:id/status", isAdmin, async (req, res) => {
     const order = await updateOrderStatus(req.params.id, req.body.status);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Notify the customer over WhatsApp. Failure to notify must not fail the
-    // status update itself — the order status is already persisted — but we
-    // report it back so the admin panel can surface the exact reason.
     let notified = false;
     let notifyError = null;
     try {
       const fullOrder = await getOrderById(order.id);
-      const message = buildCustomerStatusMessage(order.order_status, fullOrder);
-      if (fullOrder && message) {
-        await sendCustomerWhatsApp(fullOrder.phone, message);
+      const template = buildCustomerStatusTemplate(order.order_status, fullOrder);
+      if (fullOrder && template) {
+        await sendCustomerWhatsApp(fullOrder.phone, template);
         notified = true;
       }
     } catch (err) {
@@ -202,6 +117,5 @@ router.delete("/orders/:id", isAdmin, async (req, res) => {
     res.status(500).json({ message: "Error" });
   }
 });
-
 
 module.exports = router;
